@@ -1,63 +1,76 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, Suspense, useCallback, lazy, useMemo } from 'react';
 import HeroSection from './components/HeroSection';
 import Navbar from './components/Navbar';
 import Preloader from './components/Preloader';
-import MentorshipPage from './components/MentorshipPage';
-import ShopPage from './components/ShopPage';
-import CommunityPage from './components/CommunityPage';
-import ImmersionPage from './components/ImmersionPage';
-import ProductsPage from './components/ProductsPage';
-import NewsletterPage from './components/NewsletterPage';
-import AdminPage from './components/AdminPage';
 import Footer from './components/Footer';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 
+// Lazy load page components for code splitting
+const MentorshipPage = lazy(() => import('./components/MentorshipPage'));
+const ShopPage = lazy(() => import('./components/ShopPage'));
+const CommunityPage = lazy(() => import('./components/CommunityPage'));
+const ImmersionPage = lazy(() => import('./components/ImmersionPage'));
+const ProductsPage = lazy(() => import('./components/ProductsPage'));
+const NewsletterPage = lazy(() => import('./components/NewsletterPage'));
+const AdminPage = lazy(() => import('./components/AdminPage'));
+
+// Loading fallback component
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-retro-bg">
+    <div className="font-mono text-black">Carregando...</div>
+  </div>
+);
+
 // Register GSAP plugins
 gsap.registerPlugin(ScrollTrigger, useGSAP);
+
+// Page component mapping - memoized for performance
+const PAGE_COMPONENTS = {
+  home: { component: HeroSection, lazy: false },
+  mentorship: { component: MentorshipPage, lazy: true },
+  immersion: { component: ImmersionPage, lazy: true },
+  products: { component: ProductsPage, lazy: true },
+  shop: { component: ShopPage, lazy: true },
+  community: { component: CommunityPage, lazy: true },
+  newsletter: { component: NewsletterPage, lazy: true },
+  admin: { component: AdminPage, lazy: true },
+} as const;
 
 const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState('home');
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Transition Logic
-  const handleNavigate = (page: string) => {
+  // Memoized navigation handler
+  const handleNavigate = useCallback((page: string) => {
     if (page === currentPage) return;
     
-    // Performance optimization: refresh ScrollTrigger only when needed
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'instant' });
     
-    // Request animation frame for smoother transition before refresh
     requestAnimationFrame(() => {
       ScrollTrigger.refresh(true);
     });
-  };
+  }, [currentPage]);
 
-  // Simple Router Switch
-  const renderContent = () => {
-    switch (currentPage) {
-      case 'mentorship':
-        return <MentorshipPage />;
-      case 'immersion':
-        return <ImmersionPage />;
-      case 'products':
-        return <ProductsPage />;
-      case 'shop':
-        return <ShopPage />;
-      case 'community':
-        return <CommunityPage />;
-      case 'newsletter':
-        return <NewsletterPage />;
-      case 'admin':
-        return <AdminPage />;
-      case 'home':
-      default:
-        return <HeroSection onNavigate={handleNavigate} />;
+  // Memoized content renderer using component map
+  const renderContent = useCallback(() => {
+    const page = currentPage as keyof typeof PAGE_COMPONENTS;
+    const pageConfig = PAGE_COMPONENTS[page] || PAGE_COMPONENTS.home;
+    const Component = pageConfig.component;
+
+    if (page === 'home') {
+      return <Component onNavigate={handleNavigate} />;
     }
-  };
+
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <Component />
+      </Suspense>
+    );
+  }, [currentPage, handleNavigate]);
 
   return (
     <div className="min-h-screen bg-retro-bg font-mono text-black selection:bg-black selection:text-white overflow-x-hidden flex flex-col">

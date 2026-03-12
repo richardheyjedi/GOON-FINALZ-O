@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 
 interface PreloaderProps {
   onComplete: () => void;
@@ -7,30 +7,30 @@ interface PreloaderProps {
 const Preloader: React.FC<PreloaderProps> = ({ onComplete }) => {
   const [progress, setProgress] = useState(0);
   const [slideUp, setSlideUp] = useState(false);
+  const isMobile = useMemo(() => typeof window !== 'undefined' && window.innerWidth < 768, []);
 
   useEffect(() => {
-    // Random increment logic to simulate real data processing
+    // Faster loading on mobile
+    const increment = isMobile ? 3 : 1;
     const interval = setInterval(() => {
       setProgress((prev) => {
-        const increment = Math.floor(Math.random() * 5) + 1; // Random jump between 1-5%
-        const next = prev + increment;
+        const newVal = Math.floor(Math.random() * 5) + increment;
+        const next = prev + newVal;
         
         if (next >= 100) {
           clearInterval(interval);
-          // Wait a moment at 100% before triggering the slide up
           setTimeout(() => {
             setSlideUp(true);
-            // Wait for the slide-up animation (800ms) to finish before unmounting
             setTimeout(onComplete, 800);
           }, 200);
           return 100;
         }
         return next;
       });
-    }, 40); // Update speed
+    }, isMobile ? 30 : 40);
 
     return () => clearInterval(interval);
-  }, [onComplete]);
+  }, [onComplete, isMobile]);
 
   return (
     <div 
@@ -48,17 +48,19 @@ const Preloader: React.FC<PreloaderProps> = ({ onComplete }) => {
       {/* Main Percentage Counter */}
       <div className="flex-1 flex items-center justify-center relative overflow-hidden">
          <div className="relative">
-            {/* Main Text - Pixel Font */}
+            {/* Main Text */}
             <span className="text-[12vw] md:text-[18vw] leading-none font-pixel select-none block text-center">
               {progress}%
             </span>
-            {/* Decorative Glitch Duplicate */}
-            <span 
-              className="absolute top-0 left-0 text-[12vw] md:text-[18vw] leading-none font-pixel text-white opacity-20 select-none animate-pulse hidden md:block text-center w-full" 
-              style={{ clipPath: 'inset(40% 0 61% 0)', transform: 'translateX(-4px)' }}
-            >
-              {progress}%
-            </span>
+            {/* Glitch Duplicate - only on desktop */}
+            {!isMobile && (
+              <span 
+                className="absolute top-0 left-0 text-[12vw] md:text-[18vw] leading-none font-pixel text-white opacity-20 select-none animate-pulse hidden md:block text-center w-full" 
+                style={{ clipPath: 'inset(40% 0 61% 0)', transform: 'translateX(-4px)' }}
+              >
+                {progress}%
+              </span>
+            )}
          </div>
       </div>
 

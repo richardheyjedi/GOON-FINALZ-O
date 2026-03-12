@@ -18,6 +18,50 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      build: {
+        rollupOptions: {
+          output: {
+            chunkFileNames: 'chunks/[name]-[hash].js',
+            entryFileNames: '[name]-[hash].js',
+            manualChunks: {
+              gsap: ['gsap', '@gsap/react'],
+              lucide: ['lucide-react'],
+              react: ['react', 'react-dom'],
+            }
+          }
+        },
+        minify: 'terser',
+        terserOptions: {
+          compress: {
+            drop_console: true,
+            drop_debugger: true,
+            pure_getters: true,
+            reduce_vars: true,
+            conditionals: true,
+            dead_code: true,
+          },
+          mangle: {
+            toplevel: true,
+          },
+          format: {
+            comments: false,
+          }
+        },
+        target: 'ES2020',
+        cssCodeSplit: true,
+        sourcemap: false,
+        // Aggressive optimization
+        reportCompressedSize: false,
+        chunkSizeWarningLimit: 500,
+        // Enable automatic CSS tree-shaking
+        cssMinify: 'lightningcss',
+      },
+      optimize: {
+        // Optimize dependencies bundling
+        esbuild: {
+          legalComments: 'none',
+        }
       }
     };
 });

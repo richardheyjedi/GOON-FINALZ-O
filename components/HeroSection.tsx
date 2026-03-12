@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import RetroWindow from './RetroWindow';
 import { ArrowDown, Infinity, Crown, Play, Terminal, Database, ArrowRight, Maximize2, Barcode, CheckCircle2, Instagram, Youtube, ScanFace, Signal } from 'lucide-react';
 import { useGSAP } from '@gsap/react';
@@ -14,17 +14,18 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate }) => {
    const containerRef = useRef<HTMLDivElement>(null);
    const watermarkRef = useRef<HTMLDivElement>(null);
    const [showAllCases, setShowAllCases] = useState(false);
+   const mouseEventThrottleRef = useRef(0);
 
-   const handleMentorshipClick = () => {
+   const handleMentorshipClick = useCallback(() => {
       if (onNavigate) onNavigate('mentorship');
-   };
+   }, [onNavigate]);
 
-   const scrollToCases = () => {
+   const scrollToCases = useCallback(() => {
       const casesSection = document.getElementById('cases-section');
       if (casesSection) {
          casesSection.scrollIntoView({ behavior: 'smooth' });
       }
-   };
+   }, []);
 
    useGSAP(() => {
       // 1. Initial Reveal Animation (Staggered)
@@ -38,7 +39,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate }) => {
          delay: 0.1
       });
 
-      // 2. Mouse Move Parallax Effect (Desktop Only & Optimized)
+      // 2. Mouse Move Parallax Effect (Desktop Only & Optimized with throttling)
       const isLargeScreen = window.matchMedia("(min-width: 1024px)").matches;
       if (isLargeScreen) {
          const contentX = gsap.quickTo(".gsap-parallax-content", "x", { duration: 1, ease: "power2.out" });
@@ -47,6 +48,11 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate }) => {
          const waterY = gsap.quickTo(watermarkRef.current, "y", { duration: 1, ease: "power2.out" });
 
          const handleMouseMove = (e: MouseEvent) => {
+            // Throttle mouse move events to every 16ms (~60fps)
+            const now = Date.now();
+            if (now - mouseEventThrottleRef.current < 16) return;
+            mouseEventThrottleRef.current = now;
+
             const { clientX, clientY } = e;
             const xPos = (clientX / window.innerWidth - 0.5);
             const yPos = (clientY / window.innerHeight - 0.5);
@@ -93,17 +99,15 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate }) => {
 
    }, { scope: containerRef });
 
-   // ✅ FORA do useGSAP — fallback de segurança para mobile
+   // Safety fallback for mobile and image loading
    useEffect(() => {
-      // Se após 2s os cards ainda estiverem invisíveis, força a visibilidade
       const safetyTimer = setTimeout(() => {
          gsap.set(".gsap-video-card", { opacity: 1, y: 0 });
          ScrollTrigger.refresh();
       }, 2000);
 
-      // Recalcula posições quando todas as imagens terminam de carregar
       const handleLoad = () => ScrollTrigger.refresh();
-      window.addEventListener('load', handleLoad);
+      window.addEventListener('load', handleLoad, { passive: true });
 
       return () => {
          clearTimeout(safetyTimer);
